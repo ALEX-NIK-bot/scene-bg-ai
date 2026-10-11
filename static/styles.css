@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Scene BG AI</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div class="app">
+    <div class="card topbar">
+      <h1>🎨 Scene BG AI</h1>
+      <p>Реальная генерация фоновых сцен для историй, комиксов, игр и анимации.</p>
+    </div>
+
+    <div class="grid">
+      <div class="form-wrap card">
+        <label for="prompt">Описание сцены</label>
+        <textarea id="prompt" placeholder="Например: old castle in fog, fantasy atmosphere, golden sunset, cinematic lighting"></textarea>
+
+        <div style="margin-top:16px;">
+          <label>Предустановки</label>
+          <div class="preset-grid">
+            <button type="button" class="secondary preset-btn" data-preset="fantasy">🏰 Фэнтези</button>
+            <button type="button" class="secondary preset-btn" data-preset="cyberpunk">🚀 Киберпанк</button>
+            <button type="button" class="secondary preset-btn" data-preset="horror">👻 Ужас</button>
+            <button type="button" class="secondary preset-btn" data-preset="romance">💕 Романтика</button>
+            <button type="button" class="secondary preset-btn" data-preset="adventure">⛰️ Приключение</button>
+            <button type="button" class="secondary preset-btn" data-preset="city">🏙️ Город</button>
+          </div>
+        </div>
+
+        <div style="margin-top:18px;">
+          <label for="style">Стиль</label>
+          <select id="style">
+            <option value="cinematic">Кинематографичный</option>
+            <option value="realistic">Реалистичный</option>
+            <option value="anime">Аниме</option>
+            <option value="watercolor">Акварель</option>
+            <option value="oil">Масляная живопись</option>
+            <option value="concept">Concept art</option>
+            <option value="3d">3D render</option>
+          </select>
+        </div>
+
+        <div style="margin-top:18px;">
+          <label for="mood">Настроение</label>
+          <select id="mood">
+            <option value="epic">Эпическое</option>
+            <option value="peaceful">Спокойное</option>
+            <option value="dark">Темное</option>
+            <option value="mysterious">Таинственное</option>
+            <option value="dramatic">Драматичное</option>
+            <option value="dreamy">Мечтательное</option>
+          </select>
+        </div>
+
+        <div class="slider">
+          <div class="slider-head">
+            <span>Качество</span>
+            <span id="qualityLabel">7</span>
+          </div>
+          <input id="quality" type="range" min="1" max="10" value="7" />
+        </div>
+
+        <div class="slider">
+          <div class="slider-head">
+            <span>Детализация</span>
+            <span id="detailLabel">7</span>
+          </div>
+          <input id="detail" type="range" min="1" max="10" value="7" />
+        </div>
+
+        <div class="slider">
+          <div class="slider-head">
+            <span>Насыщенность</span>
+            <span id="saturationLabel">7</span>
+          </div>
+          <input id="saturation" type="range" min="1" max="10" value="7" />
+        </div>
+
+        <div class="button-row">
+          <button type="button" class="primary" id="generateBtn">🎬 Сгенерировать</button>
+          <button type="button" class="secondary" id="clearBtn">🗑️ Очистить</button>
+        </div>
+      </div>
+
+      <div class="preview-wrap card">
+        <div class="preview-box">
+          <div id="loading" class="loading">
+            <div>
+              <div class="spinner"></div>
+              <div>Генерируем сцену...</div>
+            </div>
+          </div>
+
+          <img id="resultImage" alt="Generated scene" />
+          <div id="placeholder" class="placeholder">
+            <span class="emoji">🎨</span>
+            <div>Здесь появится фон сцены</div>
+          </div>
+        </div>
+
+        <div class="meta">
+          <span>Создано: <strong id="count">0</strong></span>
+          <span id="status">Ожидание</span>
+        </div>
+
+        <div class="button-row">
+          <button type="button" class="primary" id="downloadBtn" style="display:none;">⬇️ Скачать</button>
+          <button type="button" class="secondary" id="shareBtn" style="display:none;">📤 Поделиться</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const presets = {
+      fantasy: {
+        prompt: "Ancient castle in the fog at sunset, fantasy world, cinematic lighting, epic mood",
+        style: "cinematic",
+        mood: "epic"
+      },
+      cyberpunk: {
+        prompt: "Neon cyberpunk city at night, rain, reflective streets, futuristic atmosphere",
+        style: "3d",
+        mood: "dramatic"
+      },
+      horror: {
+        prompt: "Abandoned mansion in a dark forest at moonlight, creepy atmosphere, horror scene",
+        style: "concept",
+        mood: "dark"
+      },
+      romance: {
+        prompt: "Romantic seaside sunset, soft colors, warm lights, dreamy atmosphere",
+        style: "watercolor",
+        mood: "dreamy"
+      },
+      adventure: {
+        prompt: "Mountain valley with ancient road, adventurous atmosphere, epic exploration scene",
+        style: "realistic",
+        mood: "epic"
+      },
+      city: {
+        prompt: "Modern city skyline at night, bright lights, cinematic urban atmosphere",
+        style: "cinematic",
+        mood: "dramatic"
+      }
+    };
+
+    const promptEl = document.getElementById('prompt');
+    const styleEl = document.getElementById('style');
+    const moodEl = document.getElementById('mood');
+    const qualityEl = document.getElementById('quality');
+    const detailEl = document.getElementById('detail');
+    const saturationEl = document.getElementById('saturation');
+    const qualityLabel = document.getElementById('qualityLabel');
+    const detailLabel = document.getElementById('detailLabel');
+    const saturationLabel = document.getElementById('saturationLabel');
+    const statusEl = document.getElementById('status');
+    const countEl = document.getElementById('count');
+    const resultImage = document.getElementById('resultImage');
+    const placeholder = document.getElementById('placeholder');
+    const loadingEl = document.getElementById('loading');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const shareBtn = document.getElementById('shareBtn');
+    const generateBtn = document.getElementById('generateBtn');
+    const clearBtn = document.getElementById('clearBtn');
+
+    let count = 0;
+    let currentImage = '';
+
+    function updateLabels() {
+      qualityLabel.textContent = qualityEl.value;
+      detailLabel.textContent = detailEl.value;
+      saturationLabel.textContent = saturationEl.value;
+    }
+
+    qualityEl.addEventListener('input', updateLabels);
+    detailEl.addEventListener('input', updateLabels);
+    saturationEl.addEventListener('input', updateLabels);
+
+    document.querySelectorAll('.preset-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const preset = presets[btn.dataset.preset];
+        if (!preset) return;
+        promptEl.value = preset.prompt;
+        styleEl.value = preset.style;
+        moodEl.value = preset.mood;
+        document.querySelectorAll('.preset-btn').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+
+    async function generateImage() {
+      const prompt = promptEl.value.trim();
+      if (!prompt) {
+        alert('Введите описание сцены');
+        return;
+      }
+
+      generateBtn.disabled = true;
+      loadingEl.style.display = 'flex';
+      statusEl.textContent = 'Генерируем...';
+      placeholder.style.display = 'none';
+      resultImage.style.display = 'none';
+
+      try {
+        const response = await fetch('/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt,
+            style: styleEl.value,
+            mood: moodEl.value,
+            quality: Number(qualityEl.value),
+            detail: Number(detailEl.value),
+            saturation: Number(saturationEl.value)
+          })
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail || 'Ошибка генерации');
+        }
+
+        currentImage = data.image;
+        resultImage.src = data.image;
+        resultImage.style.display = 'block';
+        count += 1;
+        countEl.textContent = count;
+        statusEl.textContent = 'Готово';
+        downloadBtn.style.display = 'inline-block';
+        shareBtn.style.display = 'inline-block';
+      } catch (error) {
+        statusEl.textContent = 'Ошибка';
+        alert(error.message || 'Ошибка генерации');
+      } finally {
+        loadingEl.style.display = 'none';
+        generateBtn.disabled = false;
+      }
+    }
+
+    function clearForm() {
+      promptEl.value = '';
+      styleEl.value = 'cinematic';
+      moodEl.value = 'epic';
+      qualityEl.value = 7;
+      detailEl.value = 7;
+      saturationEl.value = 7;
+      updateLabels();
+      currentImage = '';
+      resultImage.style.display = 'none';
+      placeholder.style.display = 'block';
+      downloadBtn.style.display = 'none';
+      shareBtn.style.display = 'none';
+      statusEl.textContent = 'Ожидание';
+    }
+
+    function downloadImage() {
+      if (!currentImage) return;
+      const a = document.createElement('a');
+      a.href = currentImage;
+      a.download = `scene-bg-${Date.now()}.png`;
+      a.click();
+    }
+
+    async function shareImage() {
+      if (!currentImage) return;
+      try {
+        const res = await fetch(currentImage);
+        const blob = await res.blob();
+        const file = new File([blob], 'scene-bg.png', { type: 'image/png' });
+        if (navigator.share) {
+          await navigator.share({
+            title: 'Scene BG AI',
+            text: 'Вот фон, который я сгенерировал',
+            files: [file]
+          });
+        } else {
+          alert('Поделиться не поддерживается в этом браузере. Используйте скачать.');
+        }
+      } catch (error) {
+        alert('Не удалось поделиться изображением');
+      }
+    }
+
+    generateBtn.addEventListener('click', generateImage);
+    clearBtn.addEventListener('click', clearForm);
+    downloadBtn.addEventListener('click', downloadImage);
+    shareBtn.addEventListener('click', shareImage);
+
+    updateLabels();
+  </script>
+</body>
+</html>
